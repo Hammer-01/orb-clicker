@@ -31,7 +31,7 @@ p.setup = function() {
     class Orb {
         constructor(x, y, vx, vy, r, c) {
             // scale radius based on screen size
-            this.r = r ?? p.min(p.width, p.height) < 600 ? p.min(p.width, p.height)/20 : 30;
+            this.r = r ?? this.calcOrbSize();
             if (arguments.length === 0) {
                 this.respawn();
             } else {
@@ -42,6 +42,10 @@ p.setup = function() {
             this.vy = vy ?? 0;
             
             this.c = c ?? p.random(0, 360);
+        }
+
+        calcOrbSize() {
+            return p.min(p.width, p.height) < 600 ? p.min(p.width, p.height)/20 : 30
         }
 
         update() {
@@ -142,6 +146,7 @@ p.draw = function() {
 // event functions
 p.windowResized = function() {
     p.resizeCanvas(p.windowWidth, p.windowHeight);
+    orbs.forEach(o => o.r = o.calcOrbSize());
 }
 
 p.mouseClicked = function() {
