@@ -36,3 +36,10 @@ td, th {
 td {
   padding-bottom: 0;
 }
+
+#loading-div {
+  position: absolute;
+  text-align: center;
+  width: 100%;
+  line-height: 100vh;
+}
