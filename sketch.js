@@ -1,7 +1,10 @@
 // Frenzy every 10 clicks (x2, 2 orbs etc.)
+// 0 flash
 
+// create new instance of p5
 new p5(async p => {
 
+// declare variables
 let orbs = [];
 let score = 0;
 let scoreTextSize = 500;
@@ -9,45 +12,21 @@ let addOrb;
 let clickValue = 1;
 let username;
 let userData;
-let clicks;
 let leaderboard = document.getElementById('leaderboard');
 let leaderboardTable = leaderboard.firstElementChild;
 let refreshLeaderboardInterval;
 
-let tips = [`Press ${navigator.userAgentData.mobile?'':'L '}to open or close the leaderboard`];
+let tips = [`Press ${navigator.userAgentData?.mobile?'':'L '}to open or close the leaderboard`];
 
 const api = "https://hammer-4e70b-default-rtdb.firebaseio.com/orbclicker/users/";
 let userId = localStorage.getItem('orbclicker-userId');
 
-
-p.setup = async function() {
+// setup function
+p.setup = function() {
     p.createCanvas(p.windowWidth, p.windowHeight);
     p.noStroke();
     p.colorMode(p.HSB);
-    p.textAlign(p.CENTER, p.CENTER);
-    
-    if (userId) {
-        score = await fetch(api + `${userId}/clicks.json`).then(r => r.json());
-        scoreTextSize = 500/(Math.log10(score+10));
-        console.log('score', score);
-        username = await fetch(api + `${userId}/name.json`).then(r => r.json());
-        console.log('username', username);
-    }
-
-    userData = await getUserData();
-
-    // create the initial leaderboard
-    Object.entries(userData).forEach(([id, {clicks, name}]) => {
-        let row = leaderboardTable.insertRow();
-        row.dataset.id = id;
-        let cell = row.insertCell();
-        cell.textContent = name;
-        cell = row.insertCell();
-        cell.textContent = clicks;
-    });
-
-    // sort the leaderboard
-    refreshLeaderboard();
+    p.textAlign(p.CENTER, p.CENTER);    
 
     class Orb {
         constructor(x, y, vx, vy, r, c) {
@@ -111,6 +90,34 @@ p.setup = async function() {
     addOrb();
 }
 
+// get necessary data from realtime database
+if (userId) {
+    score = await fetch(api + `${userId}/clicks.json`).then(r => r.json());
+    scoreTextSize = 500/(Math.log10(score+10));
+    console.log('score', score);
+    username = await fetch(api + `${userId}/name.json`).then(r => r.json());
+    console.log('username', username);
+}
+
+userData = await getUserData();
+
+// create the initial leaderboard
+Object.entries(userData).forEach(([id, {clicks, name}]) => {
+    let row = leaderboardTable.insertRow();
+    row.dataset.id = id;
+    let cell = row.insertCell();
+    cell.textContent = name;
+    cell = row.insertCell();
+    cell.textContent = clicks;
+});
+
+// sort the leaderboard (async)
+refreshLeaderboard();
+
+// hide loading screen
+document.getElementById('loading-div').hidden = true;
+
+// draw function
 p.draw = function() {
     // reset canvas and cursor
     p.background(255);
@@ -130,6 +137,11 @@ p.draw = function() {
     if (p.mouseX > p.width/2 - 110 && p.mouseX < p.width/2 + 110 && p.mouseY < 20) {
         p.cursor(p.HAND);
     }
+}
+
+// event functions
+p.windowResized = function() {
+    p.resizeCanvas(p.windowWidth, p.windowHeight);
 }
 
 p.mouseClicked = function() {
@@ -153,6 +165,7 @@ p.keyPressed = function() {
     }
 }
 
+// utility functions
 function increaseScore() {
     score += clickValue; // clickValue is currently limited (1<=val<=10) using firebase security rules
     scoreTextSize = 500/(Math.log10(score+10)); // Adjust text size based on how big the number is
@@ -206,12 +219,6 @@ async function refreshLeaderboard() {
         let row = leaderboardTable.querySelector(`tr[data-id="${id}"]`);
         row.cells[0].textContent = name;
         row.cells[1].textContent = clicks;
-        // let row = leaderboardTable.insertRow();
-        // row.dataset.id = id;
-        // let cell = row.insertCell();
-        // cell.textContent = name;
-        // cell = row.insertCell();
-        // cell.textContent = clicks;
     });
     
     // sort leaderboard
@@ -228,6 +235,5 @@ function hideLeaderboard() {
 async function getUserData() {
     return await fetch(api + '.json').then(r => r.json());
 }
-
 
 });
