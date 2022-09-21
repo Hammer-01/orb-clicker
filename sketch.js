@@ -14,12 +14,11 @@ let leaderboard = document.getElementById('leaderboard');
 let leaderboardTable = leaderboard.firstElementChild;
 let refreshLeaderboardInterval;
 
-
-
-let tips = ["Press 'L' to open the leaderboard"];
+let tips = [`Press ${navigator.userAgentData.mobile?'':'L '}to open or close the leaderboard`];
 
 const api = "https://hammer-4e70b-default-rtdb.firebaseio.com/orbclicker/users/";
 let userId = localStorage.getItem('orbclicker-userId');
+
 
 p.setup = async function() {
     p.createCanvas(p.windowWidth, p.windowHeight);
@@ -85,7 +84,7 @@ p.setup = async function() {
 
             this.c = (this.c + 1) % 360;
 
-            p.cursor(this.isMouseOver() ? p.HAND : p.ARROW);
+            if (this.isMouseOver()) p.cursor(p.HAND);
             this.draw();
         }
 
@@ -113,7 +112,11 @@ p.setup = async function() {
 }
 
 p.draw = function() {
+    // reset canvas and cursor
     p.background(255);
+    p.cursor(p.ARROW);
+
+    // score and tips
     p.fill(60);
     p.textSize(scoreTextSize);
     p.text(score, p.width/2, p.height/2);
@@ -122,6 +125,11 @@ p.draw = function() {
     p.text(tips[0], p.width/2, 10);
 
     orbs.forEach(o => o.update());
+    
+    // check if over show/hide leaderboard
+    if (p.mouseX > p.width/2 - 110 && p.mouseX < p.width/2 + 110 && p.mouseY < 20) {
+        p.cursor(p.HAND);
+    }
 }
 
 p.mouseClicked = function() {
@@ -131,6 +139,11 @@ p.mouseClicked = function() {
             increaseScore();
         }
     });
+
+    if (p.mouseX > p.width/2 - 110 && p.mouseX < p.width/2 + 110 && p.mouseY < 20) {
+        if (leaderboard.hidden) showLeaderboard();
+        else hideLeaderboard();
+    }
 }
 
 p.keyPressed = function() {
