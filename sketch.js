@@ -52,7 +52,8 @@ p.setup = async function() {
 
     class Orb {
         constructor(x, y, vx, vy, r, c) {
-            this.r = r ?? 30;
+            // scale radius based on screen size
+            this.r = r ?? p.min(p.width, p.height) < 600 ? p.min(p.width, p.height)/20 : 30;
             if (arguments.length === 0) {
                 this.respawn();
             } else {
@@ -72,8 +73,15 @@ p.setup = async function() {
             this.vy = p.constrain(this.vy, -10, 10);
             this.x += this.vx;
             this.y += this.vy;
-            this.x = p.constrain(this.x, this.r, p.width-this.r);
-            this.y = p.constrain(this.y, this.r, p.height-this.r);
+
+            if (this.x <= this.r || this.x >= p.width-this.r) {
+                this.x = p.constrain(this.x, this.r, p.width-this.r);
+                this.vx = 0;
+            }
+            if (this.y <= this.r || this.y >= p.height-this.r) {
+                this.y = p.constrain(this.y, this.r, p.height-this.r);
+                this.vy = 0;
+            }
 
             this.c = (this.c + 1) % 360;
 
