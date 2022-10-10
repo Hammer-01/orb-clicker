@@ -1,5 +1,5 @@
 // Frenzy every 10 clicks (x2, 2 orbs etc.)
-// 0 flash
+// Handle getting kicked
 
 // create new instance of p5
 new p5(async p => {
@@ -18,8 +18,14 @@ let refreshLeaderboardInterval;
 
 let tips = [`Press ${navigator.userAgentData?.mobile?'':'L '}to open or close the leaderboard`];
 
-const api = "https://hammer-4e70b-default-rtdb.firebaseio.com/orbclicker/users/";
+const api = "https://hammer-4e70b-default-rtdb.firebaseio.com/orbclicker/";
+const userApi = api + 'users/';
+
 let userId = localStorage.getItem('orbclicker-userId');
+
+// cheat prevention
+let autoclickerDetected = false;
+let cps = Array(5); // clicks per second - check last 5 seconds
 
 // setup function
 p.setup = function() {
@@ -96,10 +102,10 @@ p.setup = function() {
 
 // get necessary data from realtime database
 if (userId) {
-    score = await fetch(api + `${userId}/clicks.json`).then(r => r.json());
+    score = await fetch(userApi + `${userId}/clicks.json`).then(r => r.json());
     scoreTextSize = 500/(Math.log10(score+10));
     console.log('score', score);
-    username = await fetch(api + `${userId}/name.json`).then(r => r.json());
+    username = await fetch(userApi + `${userId}/name.json`).then(r => r.json());
     console.log('username', username);
 }
 
@@ -141,6 +147,13 @@ p.draw = function() {
     if (p.mouseX > p.width/2 - 110 && p.mouseX < p.width/2 + 110 && p.mouseY < 20) {
         p.cursor(p.HAND);
     }
+
+    if (!autoclickerDetected) {
+        // reset cps slot every second
+        if (p.frameCount % 60 === 0) {
+            cps[p.floor(p.frameCount / 60) % cps.length] = 0;
+        }
+    }
 }
 
 // event functions
@@ -161,6 +174,16 @@ p.mouseClicked = function() {
         if (leaderboard.hidden) showLeaderboard();
         else hideLeaderboard();
     }
+
+    if (!autoclickerDetected) {
+        // frameRate is 60, so change slots every second
+        cps[p.floor(p.frameCount / 60) % cps.length]++;
+        // if clicking at faster than 20cps for 5 seconds, its probably an autoclicker
+        if (cps.reduce((a, b) => a + b, 0) > 20 * cps.length) {
+            autoclickerDetected = true;
+            sendPlayerFlag('Autoclicker detected', {"CPS last 5 secs": cps, "current score": score});
+        }
+    }
 }
 
 p.keyPressed = function() {
@@ -178,17 +201,25 @@ function increaseScore() {
 
     // only add userId when we also add username
     if (!userId) userId = localStorage['orbclicker-userId'] = window.crypto.randomUUID();
-    fetch(api + `${userId}/clicks.json`, {
+    fetch(userApi + `${userId}/clicks.json`, {
         method: "PUT",
         body: `{".sv":{"increment":${clickValue}}}`
     }).then(r => r.json()).then(num => num !== score && console.log('cheater! (score, serverScore)', score, num));
 
-    if (score === 1 && !username) {
-        username = prompt('Enter username:')?.trim() || 'User-' + userId;
-        fetch(api + `${userId}/name.json`, {
-            method: "PUT",
-            body: `"${username}"`
-        })
+    if (score === 1 || !username) {
+        let message = 'Enter username:';
+        while (!username) {
+            username = prompt(message)?.trim();
+            if (!username || username.length > 50) { // check if username is too short or long
+                message = 'Invalid username, try again:';
+                username = ''; // reset username
+                continue;
+            }
+            fetch(userApi + `${userId}/name.json`, {
+                method: "PUT",
+                body: `"${username}"`
+            });
+        }
     }
 
     if (!leaderboard.hidden) refreshLeaderboard();
@@ -202,11 +233,11 @@ async function showLeaderboard() {
 
 async function refreshLeaderboard() {
     // check if new person has joined
-    let shallowUserData = Object.keys(await fetch(api + '.json?shallow=true').then(r => r.json()));
+    let shallowUserData = Object.keys(await fetch(userApi + '.json?shallow=true').then(r => r.json()));
     if (shallowUserData.length > Object.keys(userData).length) {
         let newUserData = shallowUserData.filter(x => !userData[x]);
         for (let id of newUserData) {
-            let data = await fetch(api + id + '.json').then(r => r.json());
+            let data = await fetch(userApi + id + '.json').then(r => r.json());
             let row = leaderboardTable.insertRow();
             row.dataset.id = id;
             let cell = row.insertCell();
@@ -238,7 +269,14 @@ function hideLeaderboard() {
 }
 
 async function getUserData() {
-    return await fetch(api + '.json').then(r => r.json());
+    return await fetch(userApi + '.json').then(r => r.json());
+}
+
+function sendPlayerFlag(reason, data) {
+    fetch(api + `flags/userFlags/${userId}.json`, {
+        method: 'POST',
+        body: JSON.stringify({reason, data, timestamp: new Date})
+    });
 }
 
 });
